@@ -1,0 +1,134 @@
+function copyDataAcrossMultipleSheetsAndSpreadsheets() {
+  // URL y hojas de la hoja de cálculo de destino
+  var destinationSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1yCiCgLSm4ZNNah-Rrd8mGm1e10hO430by-oDBuzLruk/edit';
+  var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSpreadsheetUrl);
+
+  // URL y hojas de la hoja de cálculo de origen
+  var sourceSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1M0linoBghADfrfqpVvLPx9ZeDsWowB0ZzMGkfMmMMXQ/edit';
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+
+  // Mapeos unificados
+  var mappings = [
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D10:F10', destinationSheetName: ' Resumen', destinationCell: 'A2' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D13:G13', destinationSheetName: ' Resumen', destinationCell: 'D2' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D15:G15', destinationSheetName: ' Resumen', destinationCell: 'B2' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D16:G16', destinationSheetName: ' Resumen', destinationCell: 'C2' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'D19:G19', destinationSheetName: ' Resumen', destinationCell: 'L2' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P4', destinationSheetName: ' Resumen', destinationCell: 'S2' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P5', destinationSheetName: ' Resumen', destinationCell: 'R2' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P6', destinationSheetName: ' Resumen', destinationCell: 'Q2' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P7', destinationSheetName: ' Resumen', destinationCell: 'T2' },
+  ];
+
+  mappings.forEach(function(mapping) {
+    var sourceSheet = sourceSpreadsheet.getSheetByName(mapping.sourceSheetName);
+    var destinationSheet = destinationSpreadsheet.getSheetByName(mapping.destinationSheetName);
+    
+    if (!sourceSheet || !destinationSheet) {
+      Logger.log('Error: Una de las hojas especificadas no fue encontrada: ' + mapping.sourceSheetName + ' o ' + mapping.destinationSheetName);
+      return;
+    }
+
+    var sourceRange = sourceSheet.getRange(mapping.sourceCell);
+    var destinationRange = destinationSheet.getRange(mapping.destinationCell);
+
+    if (sourceRange.getFormula().includes('=HYPERLINK')) {
+      var formula = sourceRange.getFormula();
+      destinationRange.setFormula(formula);
+    } else {
+      var displayValue = sourceRange.getDisplayValues().flat().join(' ');
+      destinationRange.setValue(displayValue);
+    }
+  });
+
+  // Suma de toda la columna D en Hoja 3 y envío del resultado a D4 en Hoja 1
+  var sheetToSum = sourceSpreadsheet.getSheetByName('Hoja 3');
+  if (sheetToSum) {
+    var sumRange = sheetToSum.getRange('D1:D' + sheetToSum.getLastRow());
+    var sumValues = sumRange.getValues();
+    var sum = sumValues.reduce(function(total, row) {
+      return total + (parseFloat(row[0]) || 0);
+    }, 0);
+
+    var destinationSheetForSum = destinationSpreadsheet.getSheetByName(' Resumen');
+    if (destinationSheetForSum) {
+      var destinationCellForSum = destinationSheetForSum.getRange('M2');
+      destinationCellForSum.setValue(sum);
+    } else {
+      Logger.log('Error: La hoja "Resumen" no fue encontrada en el destino.');
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+
+  // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
+  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
+  if (sourceColumnSheet) {
+    var lastRow = sourceColumnSheet.getLastRow();
+    var sourceColumnRange = sourceColumnSheet.getRange('C4:C' + lastRow);
+    var sourceValues = sourceColumnRange.getValues();
+
+    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
+    if (destinationColumnSheet) {
+      var destinationColumnRange = destinationColumnSheet.getRange('C2:C' + (sourceValues.length + 1));
+      destinationColumnRange.setValues(sourceValues);
+    } else {
+      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+
+    // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
+  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
+  if (sourceColumnSheet) {
+    var lastRow = sourceColumnSheet.getLastRow();
+    var sourceColumnRange = sourceColumnSheet.getRange('B4:B' + lastRow);
+    var sourceValues = sourceColumnRange.getValues();
+
+    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
+    if (destinationColumnSheet) {
+      var destinationColumnRange = destinationColumnSheet.getRange('D2:D' + (sourceValues.length + 1));
+      destinationColumnRange.setValues(sourceValues);
+    } else {
+      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+    // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
+  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
+  if (sourceColumnSheet) {
+    var lastRow = sourceColumnSheet.getLastRow();
+    var sourceColumnRange = sourceColumnSheet.getRange('G4:G' + lastRow);
+    var sourceValues = sourceColumnRange.getValues();
+
+    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
+    if (destinationColumnSheet) {
+      var destinationColumnRange = destinationColumnSheet.getRange('E2:E' + (sourceValues.length + 1));
+      destinationColumnRange.setValues(sourceValues);
+    } else {
+      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+    // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
+  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
+  if (sourceColumnSheet) {
+    var lastRow = sourceColumnSheet.getLastRow();
+    var sourceColumnRange = sourceColumnSheet.getRange('J4:J' + lastRow);
+    var sourceValues = sourceColumnRange.getValues();
+
+    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
+    if (destinationColumnSheet) {
+      var destinationColumnRange = destinationColumnSheet.getRange('H2:H' + (sourceValues.length + 1));
+      destinationColumnRange.setValues(sourceValues);
+    } else {
+      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+}
+
