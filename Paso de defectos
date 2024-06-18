@@ -1,134 +1,96 @@
-function copyDataAcrossMultipleSheetsAndSpreadsheets() {
-  // URL y hojas de la hoja de cálculo de destino
+function copyDataFromSheetInOneSpreadsheetToAnother() {
+  var sourceSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1M0linoBghADfrfqpVvLPx9ZeDsWowB0ZzMGkfMmMMXQ/edit';
   var destinationSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1yCiCgLSm4ZNNah-Rrd8mGm1e10hO430by-oDBuzLruk/edit';
+
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
   var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSpreadsheetUrl);
 
-  // URL y hojas de la hoja de cálculo de origen
-  var sourceSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1M0linoBghADfrfqpVvLPx9ZeDsWowB0ZzMGkfMmMMXQ/edit';
-  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+  var sourceSheet1 = sourceSpreadsheet.getSheetByName('Hoja 1');
+  var sourceSheet2 = sourceSpreadsheet.getSheetByName('Hoja 2');
+  var destinationSheet = destinationSpreadsheet.getSheetByName('Detalle defectos');
+  var transversalDefectsSheet = destinationSpreadsheet.getSheetByName('Defectos Transversales');
 
-  // Mapeos unificados
-  var mappings = [
-    { sourceSheetName: 'Hoja 1', sourceCell: 'D10:F10', destinationSheetName: ' Resumen', destinationCell: 'A2' },
-    { sourceSheetName: 'Hoja 1', sourceCell: 'D13:G13', destinationSheetName: ' Resumen', destinationCell: 'D2' },
-    { sourceSheetName: 'Hoja 1', sourceCell: 'D15:G15', destinationSheetName: ' Resumen', destinationCell: 'B2' },
-    { sourceSheetName: 'Hoja 1', sourceCell: 'D16:G16', destinationSheetName: ' Resumen', destinationCell: 'C2' },
-    { sourceSheetName: 'Hoja 2', sourceCell: 'D19:G19', destinationSheetName: ' Resumen', destinationCell: 'L2' },
-    { sourceSheetName: 'Hoja 2', sourceCell: 'P4', destinationSheetName: ' Resumen', destinationCell: 'S2' },
-    { sourceSheetName: 'Hoja 2', sourceCell: 'P5', destinationSheetName: ' Resumen', destinationCell: 'R2' },
-    { sourceSheetName: 'Hoja 2', sourceCell: 'P6', destinationSheetName: ' Resumen', destinationCell: 'Q2' },
-    { sourceSheetName: 'Hoja 2', sourceCell: 'P7', destinationSheetName: ' Resumen', destinationCell: 'T2' },
-  ];
-
-  mappings.forEach(function(mapping) {
-    var sourceSheet = sourceSpreadsheet.getSheetByName(mapping.sourceSheetName);
-    var destinationSheet = destinationSpreadsheet.getSheetByName(mapping.destinationSheetName);
-    
-    if (!sourceSheet || !destinationSheet) {
-      Logger.log('Error: Una de las hojas especificadas no fue encontrada: ' + mapping.sourceSheetName + ' o ' + mapping.destinationSheetName);
-      return;
-    }
-
-    var sourceRange = sourceSheet.getRange(mapping.sourceCell);
-    var destinationRange = destinationSheet.getRange(mapping.destinationCell);
-
-    if (sourceRange.getFormula().includes('=HYPERLINK')) {
-      var formula = sourceRange.getFormula();
-      destinationRange.setFormula(formula);
-    } else {
-      var displayValue = sourceRange.getDisplayValues().flat().join(' ');
-      destinationRange.setValue(displayValue);
-    }
-  });
-
-  // Suma de toda la columna D en Hoja 3 y envío del resultado a D4 en Hoja 1
-  var sheetToSum = sourceSpreadsheet.getSheetByName('Hoja 3');
-  if (sheetToSum) {
-    var sumRange = sheetToSum.getRange('D1:D' + sheetToSum.getLastRow());
-    var sumValues = sumRange.getValues();
-    var sum = sumValues.reduce(function(total, row) {
-      return total + (parseFloat(row[0]) || 0);
-    }, 0);
-
-    var destinationSheetForSum = destinationSpreadsheet.getSheetByName(' Resumen');
-    if (destinationSheetForSum) {
-      var destinationCellForSum = destinationSheetForSum.getRange('M2');
-      destinationCellForSum.setValue(sum);
-    } else {
-      Logger.log('Error: La hoja "Resumen" no fue encontrada en el destino.');
-    }
-  } else {
-    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  var dataAfterB2 = sourceSheet2.getRange('B3:B' + sourceSheet2.getLastRow()).getValues().flat().filter(String);
+  if (dataAfterB2.length === 0) {
+    Logger.log("No hay datos después de la celda B2 en Hoja 2. No se copiarán datos de D10:G10 y D19:G19.");
+    return;
   }
 
-  // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
-  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
-  if (sourceColumnSheet) {
-    var lastRow = sourceColumnSheet.getLastRow();
-    var sourceColumnRange = sourceColumnSheet.getRange('C4:C' + lastRow);
-    var sourceValues = sourceColumnRange.getValues();
+  var dataFromD10G10 = sourceSheet1.getRange('D10:G10').getDisplayValues().flat().join(' ');
+  var dataFromD19G19 = sourceSheet1.getRange('D19:G19').getDisplayValues().flat().join(' ');
 
-    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
-    if (destinationColumnSheet) {
-      var destinationColumnRange = destinationColumnSheet.getRange('C2:C' + (sourceValues.length + 1));
-      destinationColumnRange.setValues(sourceValues);
-    } else {
-      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
-    }
-  } else {
-    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  var lastRow = sourceSheet2.getLastRow();
+  if (lastRow < 3) {
+    Logger.log("No hay datos desde la fila 3 en adelante.");
+    return;
   }
 
-    // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
-  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
-  if (sourceColumnSheet) {
-    var lastRow = sourceColumnSheet.getLastRow();
-    var sourceColumnRange = sourceColumnSheet.getRange('B4:B' + lastRow);
-    var sourceValues = sourceColumnRange.getValues();
+  var sourceRange = sourceSheet2.getRange('A3:L' + lastRow);
+  var sourceData = sourceRange.getValues();
 
-    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
-    if (destinationColumnSheet) {
-      var destinationColumnRange = destinationColumnSheet.getRange('D2:D' + (sourceValues.length + 1));
-      destinationColumnRange.setValues(sourceValues);
-    } else {
-      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+  sourceData.sort((a, b) => a[2].localeCompare(b[2])); // Ordenar los datos según la columna C (índice 2)
+
+  var dataForDetailDefects = [];
+  var dataForTransversalDefects = [];
+
+  for (var i = 0; i < sourceData.length; i++) {
+    if (sourceData[i][11] === true) { // Checkboxes en la columna L, índice 11
+      dataForTransversalDefects.push(sourceData[i].slice(0, 11));
+    } else if (sourceData[i][11] === false) {
+      dataForDetailDefects.push(sourceData[i].slice(0, 11));
     }
-  } else {
-    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
   }
-    // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
-  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
-  if (sourceColumnSheet) {
-    var lastRow = sourceColumnSheet.getLastRow();
-    var sourceColumnRange = sourceColumnSheet.getRange('G4:G' + lastRow);
-    var sourceValues = sourceColumnRange.getValues();
 
-    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
-    if (destinationColumnSheet) {
-      var destinationColumnRange = destinationColumnSheet.getRange('E2:E' + (sourceValues.length + 1));
-      destinationColumnRange.setValues(sourceValues);
-    } else {
-      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
-    }
-  } else {
-    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  var detailDefectsDataCopied = false;
+  var transversalDefectsDataCopied = false;
+
+  if (dataForDetailDefects.length > 0) {
+    var destinationLastRow = destinationSheet.getLastRow();
+    var destinationRange = destinationSheet.getRange(destinationLastRow + 1, 2, dataForDetailDefects.length, 11);
+    destinationRange.setValues(dataForDetailDefects);
+    detailDefectsDataCopied = true;
   }
-    // Copiar datos de la columna C desde C4 de Hoja 3 a C2 de Detalle HUs
-  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
-  if (sourceColumnSheet) {
-    var lastRow = sourceColumnSheet.getLastRow();
-    var sourceColumnRange = sourceColumnSheet.getRange('J4:J' + lastRow);
-    var sourceValues = sourceColumnRange.getValues();
+  if (dataForTransversalDefects.length > 0) {
+    var transversalLastRow = transversalDefectsSheet.getLastRow();
+    var transversalRange = transversalDefectsSheet.getRange(transversalLastRow + 1, 2, dataForTransversalDefects.length, 11);
+    transversalRange.setValues(dataForTransversalDefects);
+    transversalDefectsDataCopied = true;
+  }
 
-    var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
-    if (destinationColumnSheet) {
-      var destinationColumnRange = destinationColumnSheet.getRange('H2:H' + (sourceValues.length + 1));
-      destinationColumnRange.setValues(sourceValues);
-    } else {
-      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+  if (detailDefectsDataCopied) {
+    if (dataFromD10G10.trim() !== '') {
+      destinationSheet.getRange('A' + (destinationLastRow + 1)).setValue(dataFromD10G10);
     }
-  } else {
-    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+    if (dataFromD19G19.trim() !== '') {
+      destinationSheet.getRange('M' + (destinationLastRow + 1)).setValue(dataFromD19G19);
+    }
+    fillColumnBasedOnC(destinationSheet, dataFromD10G10, dataFromD19G19, destinationLastRow + 1);
+  }
+  if (transversalDefectsDataCopied) {
+    if (dataFromD10G10.trim() !== '') {
+      transversalDefectsSheet.getRange('A' + (transversalLastRow + 1)).setValue(dataFromD10G10);
+    }
+    if (dataFromD19G19.trim() !== '') {
+      transversalDefectsSheet.getRange('M' + (transversalLastRow + 1)).setValue(dataFromD19G19);
+    }
+    fillColumnBasedOnC(transversalDefectsSheet, dataFromD10G10, dataFromD19G19, transversalLastRow + 1);
+  }
+}
+
+function fillColumnBasedOnC(sheet, valueA, valueM, startRow) {
+  var columnCData = sheet.getRange('C' + startRow + ':C' + sheet.getLastRow()).getValues();
+  var lastRowC = 0;
+  for (var i = 0; i < columnCData.length; i++) {
+    if (columnCData[i][0] !== "" && columnCData[i][0] != null) {
+      lastRowC = i + 1;
+    }
+  }
+
+  if (lastRowC > 0) {
+    var valuesA = Array(lastRowC).fill([valueA]);
+    var valuesM = Array(lastRowC).fill([valueM]);
+    sheet.getRange('A' + startRow + ':A' + (startRow + lastRowC - 1)).setValues(valuesA);
+    sheet.getRange('M' + startRow + ':M' + (startRow + lastRowC - 1)).setValues(valuesM);
   }
 }
 
