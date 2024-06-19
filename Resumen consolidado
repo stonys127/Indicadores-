@@ -1,1 +1,81 @@
+ function copyDataToResumen() {
+  var destinationSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1yCiCgLSm4ZNNah-Rrd8mGm1e10hO430by-oDBuzLruk/edit';
+  var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSpreadsheetUrl);
+  var destinationResumenSheet = destinationSpreadsheet.getSheetByName('Resumen');
+
+  var sourceSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1M0linoBghADfrfqpVvLPx9ZeDsWowB0ZzMGkfMmMMXQ/edit';
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+
+  var mappings = [
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D10:F10', destinationColumn: 'A' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D13:G13', destinationColumn: 'D' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D15:G15', destinationColumn: 'B' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D16:G16', destinationColumn: 'C' },
+    { sourceSheetName: 'Hoja 1', sourceCell: 'D19:G19', destinationColumn: 'L' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P4', destinationColumn: 'S' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P5', destinationColumn: 'R' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P6', destinationColumn: 'Q' },
+    { sourceSheetName: 'Hoja 2', sourceCell: 'P7', destinationColumn: 'T' },
+    { sourceSheetName: 'Hoja 3', sourceCell: 'N13', destinationColumn: 'E' },
+    { sourceSheetName: 'Hoja 3', sourceCell: 'N12', destinationColumn: 'J' },
+    { sourceSheetName: 'Hoja 3', sourceCell: 'N11', destinationColumn: 'I' },
+    { sourceSheetName: 'Hoja 3', sourceCell: 'R5', destinationColumn: 'H' },
+    { sourceSheetName: 'Hoja 3', sourceCell: 'R6', destinationColumn: 'G' },
+    { sourceSheetName: 'Hoja 3', sourceCell: 'N7', destinationColumn: 'F' },
+  ];
+
+  // Encontrar la primera fila vacía en la hoja de destino
+  var lastRow = getLastNonEmptyRow(destinationResumenSheet, 'A');
+  var destinationRow = lastRow + 1;
+
+  mappings.forEach(function(mapping) {
+    var sourceSheet = sourceSpreadsheet.getSheetByName(mapping.sourceSheetName);
+    if (!sourceSheet) {
+      Logger.log('Error: La hoja de origen especificada no fue encontrada: ' + mapping.sourceSheetName);
+      return;
+    }
+
+    var sourceRange = sourceSheet.getRange(mapping.sourceCell);
+    var destinationCell = mapping.destinationColumn + destinationRow;
+
+    if (sourceRange.getFormula().includes('=HYPERLINK')) {
+      var formula = sourceRange.getFormula();
+      destinationResumenSheet.getRange(destinationCell).setFormula(formula);
+    } else {
+      var displayValues = sourceRange.getDisplayValues().flat().join(' ');
+      destinationResumenSheet.getRange(destinationCell).setValue(displayValues);
+    }
+  });
+
+  // Suma de toda la columna D en Hoja 3 y envío del resultado a M en Resumen
+  var sheetToSum = sourceSpreadsheet.getSheetByName('Hoja 3');
+  if (sheetToSum) {
+    var sumRange = sheetToSum.getRange('D1:D' + sheetToSum.getLastRow());
+    var sumValues = sumRange.getValues();
+    var sum = sumValues.reduce(function(total, row) {
+      return total + (parseFloat(row[0]) || 0);
+    }, 0);
+
+    var destinationCellForSum = 'M' + destinationRow;
+    destinationResumenSheet.getRange(destinationCellForSum).setValue(sum.toString());
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+
+  // Asegurar que los datos en la columna L después de la fila 4 no se interpreten como fechas
+  var rangeL = destinationResumenSheet.getRange('L5:L' + destinationResumenSheet.getLastRow());
+  rangeL.setNumberFormat('@STRING@');
+}
+
+function getLastNonEmptyRow(sheet, column) {
+  var lastRow = sheet.getLastRow();
+  var range = sheet.getRange(column + '1:' + column + lastRow);
+  var values = range.getValues();
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (values[i][0] !== "") {
+      return i + 1;
+    }
+  }
+  return 1;
+}
 
