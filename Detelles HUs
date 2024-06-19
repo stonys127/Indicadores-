@@ -1,0 +1,83 @@
+ function copyDataToDetalleHUs() {
+  var destinationSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1yCiCgLSm4ZNNah-Rrd8mGm1e10hO430by-oDBuzLruk/edit';
+  var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSpreadsheetUrl);
+  var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
+
+  var sourceSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1M0linoBghADfrfqpVvLPx9ZeDsWowB0ZzMGkfMmMMXQ/edit';
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('Hoja 3');
+  var lastRow = sourceColumnSheet ? sourceColumnSheet.getLastRow() : 0;
+
+  if (sourceColumnSheet) {
+    var sourceColumnRangeC = sourceColumnSheet.getRange('C4:C' + lastRow);
+    var sourceValuesC = sourceColumnRangeC.getValues().filter(String); // Filtra valores no vacíos
+    var sourceLength = sourceValuesC.length;
+
+    var sourceColumnRangeB = sourceColumnSheet.getRange('B4:B' + (3 + sourceLength));
+    var sourceValuesB = sourceColumnRangeB.getValues();
+    var sourceColumnRangeG = sourceColumnSheet.getRange('G4:G' + (3 + sourceLength));
+    var sourceValuesG = sourceColumnRangeG.getValues();
+    var sourceColumnRangeJ = sourceColumnSheet.getRange('J4:J' + (3 + sourceLength));
+    var sourceValuesJ = sourceColumnRangeJ.getValues();
+
+    if (destinationColumnSheet) {
+      var lastDestinationRow = getLastNonEmptyRow(destinationColumnSheet, 'C') + 1;
+      if (lastDestinationRow < 2) {
+        lastDestinationRow = 2;
+      }
+
+      var destinationColumnRangeC = destinationColumnSheet.getRange('C' + lastDestinationRow + ':C' + (lastDestinationRow + sourceLength - 1));
+      destinationColumnRangeC.setValues(sourceValuesC);
+      var destinationColumnRangeD = destinationColumnSheet.getRange('D' + lastDestinationRow + ':D' + (lastDestinationRow + sourceLength - 1));
+      destinationColumnRangeD.setValues(sourceValuesB);
+      var destinationColumnRangeE = destinationColumnSheet.getRange('E' + lastDestinationRow + ':E' + (lastDestinationRow + sourceLength - 1));
+      destinationColumnRangeE.setValues(sourceValuesG);
+      var destinationColumnRangeH = destinationColumnSheet.getRange('H' + lastDestinationRow + ':H' + (lastDestinationRow + sourceLength - 1));
+      destinationColumnRangeH.setValues(sourceValuesJ);
+
+      // Repetir datos de D10:G10 en B tantas veces como filas copiadas
+      var sourceRangeD10G10 = sourceSpreadsheet.getSheetByName('Hoja 1').getRange('D10:G10');
+      var dataFromD10G10 = sourceRangeD10G10.getDisplayValues().flat().join(' ');
+      var repeatValuesD10G10 = Array(sourceLength).fill([dataFromD10G10]);
+      var destinationRangeB = destinationColumnSheet.getRange('B' + lastDestinationRow + ':B' + (lastDestinationRow + repeatValuesD10G10.length - 1));
+      destinationRangeB.setValues(repeatValuesD10G10);
+
+      // Repetir datos de D19:G19 en A tantas veces como filas copiadas
+      var sourceRangeD19G19 = sourceSpreadsheet.getSheetByName('Hoja 1').getRange('D19:G19');
+      var dataFromD19G19 = sourceRangeD19G19.getDisplayValues().flat().join(' ');
+      var repeatValuesD19G19 = Array(sourceLength).fill([dataFromD19G19]);
+      var destinationRangeA = destinationColumnSheet.getRange('A' + lastDestinationRow + ':A' + (lastDestinationRow + repeatValuesD19G19.length - 1));
+      destinationRangeA.setValues(repeatValuesD19G19);
+
+      // Repetir datos de D17:G17 en F tantas veces como filas copiadas
+      var sourceRangeD17G17 = sourceSpreadsheet.getSheetByName('Hoja 1').getRange('D17:G17');
+      var dataFromD17G17 = sourceRangeD17G17.getDisplayValues().flat().join(' ');
+      var repeatValuesD17G17 = Array(sourceLength).fill([dataFromD17G17]);
+      var destinationRangeF = destinationColumnSheet.getRange('F' + lastDestinationRow + ':F' + (lastDestinationRow + repeatValuesD17G17.length - 1));
+      destinationRangeF.setValues(repeatValuesD17G17);
+
+      // Repetir datos de D18:G18 en G tantas veces como filas copiadas
+      var sourceRangeD18G18 = sourceSpreadsheet.getSheetByName('Hoja 1').getRange('D18:G18');
+      var dataFromD18G18 = sourceRangeD18G18.getDisplayValues().flat().join(' ');
+      var repeatValuesD18G18 = Array(sourceLength).fill([dataFromD18G18]);
+      var destinationRangeG = destinationColumnSheet.getRange('G' + lastDestinationRow + ':G' + (lastDestinationRow + repeatValuesD18G18.length - 1));
+      destinationRangeG.setValues(repeatValuesD18G18);
+    } else {
+      Logger.log('Error: La hoja "Detalle HUs" no fue encontrada en el destino.');
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+}
+
+function getLastNonEmptyRow(sheet, column) {
+  var lastRow = sheet.getLastRow();
+  var range = sheet.getRange(column + '1:' + column + lastRow);
+  var values = range.getValues();
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (values[i][0] !== "") {
+      return i + 1;
+    }
+  }
+  return 0;
+}
