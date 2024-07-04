@@ -1,0 +1,299 @@
+  function main() {
+  var sourceSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSpreadsheetUrl = sourceSpreadsheet.getUrl();
+  var destinationSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1yCiCgLSm4ZNNah-Rrd8mGm1e10hO430by-oDBuzLruk/edit';
+  
+  // Ejecutar la limpieza de datos basura primero
+  clearCellsIfNoData(sourceSpreadsheetUrl);
+  
+  // Verificar la condición antes de copiar datos
+  if (checkCondition(sourceSpreadsheetUrl)) {
+    // Copiar datos después de limpiar las celdas
+    copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl);
+  }
+}
+
+function clearCellsIfNoData(sourceSpreadsheetUrl) {
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+  var sheet = sourceSpreadsheet.getSheetByName('2 Estado Defectos');
+
+  if (sheet) {
+    var lastRow = sheet.getLastRow();
+    var rangeB = sheet.getRange('B3:B' + lastRow);
+    var valuesB = rangeB.getValues();
+
+    for (var i = 0; i < valuesB.length; i++) {
+      if (valuesB[i][0] === "") {
+        // Limpiar completamente la celda en la columna L si no hay datos en la columna B
+        var cell = sheet.getRange('L' + (i + 3));
+        cell.clearContent(); // Limpiar el contenido
+        cell.setDataValidation(null); // Eliminar la validación de datos, incluyendo casillas de verificación
+      }
+    }
+  } else {
+    Logger.log('Error: La hoja "Hoja 2" no fue encontrada en el origen.');
+  }
+}
+
+function checkCondition(sourceSpreadsheetUrl) {
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+  var sourceSheet2 = sourceSpreadsheet.getSheetByName('2 Estado Defectos');
+  var sourceMainSheet = sourceSpreadsheet.getSheetByName('1 Datos Generales');
+  
+  if (!sourceSheet2 || !sourceMainSheet) {
+    Logger.log('Error: No se encontraron las hojas necesarias en el origen.');
+    return false;
+  }
+  
+  var lastRow = sourceSheet2.getLastRow();
+  if (lastRow < 13) {
+    Logger.log("No hay datos desde la fila 13 en adelante.");
+    return true;
+  }
+  
+  var sourceData = sourceSheet2.getRange('A13:L' + lastRow).getValues();
+  for (var i = 0; i < sourceData.length; i++) {
+    if (sourceData[i][1] !== "" && sourceData[i][11] === "") {
+      var alertMessage = "Existe un dato en la columna B sin casilla en la columna L en la fila " + (i + 13) + ".";
+      sourceMainSheet.getRange('G28').setValue(alertMessage);
+      Logger.log(alertMessage);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+function copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl) {
+  var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSpreadsheetUrl);
+  var destinationResumenSheet = destinationSpreadsheet.getSheetByName('Resumen');
+  var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
+  var destinationDefectsSheet = destinationSpreadsheet.getSheetByName('Detalle defectos');
+  var transversalDefectsSheet = destinationSpreadsheet.getSheetByName('Defectos Transversales');
+
+  var sourceSpreadsheet = SpreadsheetApp.openByUrl(sourceSpreadsheetUrl);
+  var sourceColumnSheet = sourceSpreadsheet.getSheetByName('3 Estado Final');
+  var sourceMainSheet = sourceSpreadsheet.getSheetByName('1 Datos Generales');
+  var sourceSheet2 = sourceSpreadsheet.getSheetByName('2 Estado Defectos');
+
+  if (!sourceSpreadsheet || !destinationSpreadsheet) {
+    Logger.log('Error: No se pudieron abrir los archivos de origen o destino.');
+    return;
+  }
+
+  // Código para copyDataToResumen
+  copyDataToResumen(sourceSpreadsheet, destinationResumenSheet);
+
+  // Código para copyDataToDetalleHUs
+  copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationColumnSheet);
+
+  // Código para copyDataFromSheetInOneSpreadsheetToAnother
+  copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainSheet, destinationDefectsSheet, transversalDefectsSheet);
+}
+
+function copyDataToResumen(sourceSpreadsheet, destinationResumenSheet) {
+  var mappings = [
+    { sourceSheetName: '1 Datos Generales', sourceCell: 'D10:F10', destinationColumn: 'A' },
+    { sourceSheetName: '1 Datos Generales', sourceCell: 'D13:G13', destinationColumn: 'D' },
+    { sourceSheetName: '1 Datos Generales', sourceCell: 'D15:G15', destinationColumn: 'B' },
+    { sourceSheetName: '1 Datos Generales', sourceCell: 'D16:G16', destinationColumn: 'C' },
+    { sourceSheetName: '1 Datos Generales', sourceCell: 'D19:G19', destinationColumn: 'L' },
+    { sourceSheetName: '2 Estado Defectos', sourceCell: 'P2', destinationColumn: 'S' },
+    { sourceSheetName: '2 Estado Defectos', sourceCell: 'P3', destinationColumn: 'R' },
+    { sourceSheetName: '2 Estado Defectos', sourceCell: 'P4', destinationColumn: 'Q' },
+    { sourceSheetName: '2 Estado Defectos', sourceCell: 'P5', destinationColumn: 'T' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'U3', destinationColumn: 'E' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'T3', destinationColumn: 'J' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'S3', destinationColumn: 'I' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'X2', destinationColumn: 'H' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'X3', destinationColumn: 'G' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'O3', destinationColumn: 'F' },
+  ];
+
+  var lastRowResumen = getLastNonEmptyRow(destinationResumenSheet, 'A');
+  var destinationRowResumen = lastRowResumen + 1;
+
+  mappings.forEach(function(mapping) {
+    var sourceSheet = sourceSpreadsheet.getSheetByName(mapping.sourceSheetName);
+    if (!sourceSheet) {
+      Logger.log('Error: La hoja de origen especificada no fue encontrada: ' + mapping.sourceSheetName);
+      return;
+    }
+
+    var sourceRange = sourceSheet.getRange(mapping.sourceCell);
+    var destinationCell = mapping.destinationColumn + destinationRowResumen;
+
+    if (sourceRange.getFormula().includes('=HYPERLINK')) {
+      var formula = sourceRange.getFormula();
+      destinationResumenSheet.getRange(destinationCell).setFormula(formula);
+    } else {
+      var displayValues = sourceRange.getDisplayValues().flat().join(' ');
+      destinationResumenSheet.getRange(destinationCell).setValue(displayValues);
+    }
+  });
+
+  // Añadir 'En ejecución' en la columna K
+  destinationResumenSheet.getRange('K' + destinationRowResumen).setValue('En ejecución');
+
+  var sheetToSum = sourceSpreadsheet.getSheetByName('3 Estado Final');
+  if (sheetToSum) {
+    var sumRange = sheetToSum.getRange('D1:D' + sheetToSum.getLastRow());
+    var sumValues = sumRange.getValues();
+    var sum = sumValues.reduce(function(total, row) {
+      return total + (parseFloat(row[0]) || 0);
+    }, 0);
+
+    var destinationCellForSum = 'M' + destinationRowResumen;
+    destinationResumenSheet.getRange(destinationCellForSum).setValue(sum.toString());
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" no fue encontrada en el origen.');
+  }
+
+  var rangeL = destinationResumenSheet.getRange('L5:L' + destinationResumenSheet.getLastRow());
+  rangeL.setNumberFormat('@STRING@');
+}
+
+function copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationColumnSheet) {
+  if (sourceColumnSheet && sourceMainSheet) {
+    var lastRow = sourceColumnSheet.getLastRow();
+    var sourceColumnRangeC = sourceColumnSheet.getRange('C10:C' + lastRow);
+    var sourceValuesC = sourceColumnRangeC.getValues().filter(String); // Filtra valores no vacíos
+    var sourceLength = sourceValuesC.length;
+
+    var sourceColumnRangeB = sourceColumnSheet.getRange('B10:B' + (9 + sourceLength));
+    var sourceValuesB = sourceColumnRangeB.getValues();
+    var sourceColumnRangeG = sourceColumnSheet.getRange('G10:G' + (9 + sourceLength));
+    var sourceValuesG = sourceColumnRangeG.getValues();
+    var sourceColumnRangeJ = sourceColumnSheet.getRange('J10:J' + (9 + sourceLength));
+    var sourceValuesJ = sourceColumnRangeJ.getValues();
+
+    var lastDestinationRowDetalle = getLastNonEmptyRow(destinationColumnSheet, 'C') + 1;
+    if (lastDestinationRowDetalle < 2) {
+      lastDestinationRowDetalle = 2;
+    }
+
+    var destinationColumnRangeC = destinationColumnSheet.getRange('C' + lastDestinationRowDetalle + ':C' + (lastDestinationRowDetalle + sourceLength - 1));
+    destinationColumnRangeC.setValues(sourceValuesC);
+    var destinationColumnRangeD = destinationColumnSheet.getRange('D' + lastDestinationRowDetalle + ':D' + (lastDestinationRowDetalle + sourceLength - 1));
+    destinationColumnRangeD.setValues(sourceValuesB);
+    var destinationColumnRangeE = destinationColumnSheet.getRange('E' + lastDestinationRowDetalle + ':E' + (lastDestinationRowDetalle + sourceLength - 1));
+    destinationColumnRangeE.setValues(sourceValuesG);
+    var destinationColumnRangeH = destinationColumnSheet.getRange('H' + lastDestinationRowDetalle + ':H' + (lastDestinationRowDetalle + sourceLength - 1));
+    destinationColumnRangeH.setValues(sourceValuesJ);
+
+    var sourceRangeD10G10 = sourceMainSheet.getRange('D10:G10');
+    var dataFromD10G10 = sourceRangeD10G10.getDisplayValues().flat().join(' ');
+    var repeatValuesD10G10 = Array(sourceLength).fill([dataFromD10G10]);
+    var destinationRangeB = destinationColumnSheet.getRange('B' + lastDestinationRowDetalle + ':B' + (lastDestinationRowDetalle + repeatValuesD10G10.length - 1));
+    destinationRangeB.setValues(repeatValuesD10G10);
+
+    var sourceRangeD19G19 = sourceMainSheet.getRange('D19:G19');
+    var dataFromD19G19 = sourceRangeD19G19.getDisplayValues().flat().join(' ');
+    var repeatValuesD19G19 = Array(sourceLength).fill([dataFromD19G19]);
+    var destinationRangeA = destinationColumnSheet.getRange('A' + lastDestinationRowDetalle + ':A' + (lastDestinationRowDetalle + repeatValuesD19G19.length - 1));
+    destinationRangeA.setValues(repeatValuesD19G19);
+
+    var sourceRangeD17G17 = sourceMainSheet.getRange('D17:G17');
+    var dataFromD17G17 = sourceRangeD17G17.getDisplayValues().flat().join(' ');
+    var repeatValuesD17G17 = Array(sourceLength).fill([dataFromD17G17]);
+    var destinationRangeF = destinationColumnSheet.getRange('F' + lastDestinationRowDetalle + ':F' + (lastDestinationRowDetalle + repeatValuesD17G17.length - 1));
+    destinationRangeF.setValues(repeatValuesD17G17);
+
+    var sourceRangeD18G18 = sourceMainSheet.getRange('D18:G18');
+    var dataFromD18G18 = sourceRangeD18G18.getDisplayValues().flat().join(' ');
+    var repeatValuesD18G18 = Array(sourceLength).fill([dataFromD18G18]);
+    var destinationRangeG = destinationColumnSheet.getRange('G' + lastDestinationRowDetalle + ':G' + (lastDestinationRowDetalle + repeatValuesD18G18.length - 1));
+    destinationRangeG.setValues(repeatValuesD18G18);
+  } else {
+    Logger.log('Error: La hoja "Hoja 3" o "Hoja 1" no fue encontrada en el origen.');
+  }
+}
+
+function copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainSheet, destinationDefectsSheet, transversalDefectsSheet) {
+  if (sourceSheet2 && sourceMainSheet) {
+    var dataAfterB2 = sourceSheet2.getRange('B13:B' + sourceSheet2.getLastRow()).getValues().flat().filter(String);
+    if (dataAfterB2.length === 0) {
+      Logger.log("No hay datos después de la celda B2 en Hoja 2. No se copiarán datos de D10:G10 y D19:G19.");
+      return;
+    }
+
+    var lastRow = sourceSheet2.getLastRow();
+    if (lastRow < 13) {
+      Logger.log("No hay datos desde la fila 13 en adelante.");
+      return;
+    }
+
+    var sourceRange = sourceSheet2.getRange('A13:L' + lastRow);
+    var sourceData = sourceRange.getValues();
+
+    var dataForDetailDefects = [];
+    var dataForTransversalDefects = [];
+    var alertMessage = null;
+
+    for (var i = 0; i < sourceData.length; i++) {
+      if (sourceData[i][1] !== "" && sourceData[i][11] === "") {
+        alertMessage = "Existe un dato en la columna B sin casilla en la columna L en la fila " + (i + 13) + ".";
+        break;
+      }
+
+      if (sourceData[i][11] === true) { // Checkboxes en la columna L, índice 11
+        dataForTransversalDefects.push(sourceData[i].slice(0, 11));
+      } else if (sourceData[i][11] === false) {
+        dataForDetailDefects.push(sourceData[i].slice(0, 11));
+      }
+    }
+
+    if (alertMessage) {
+      sourceMainSheet.getRange('J14').setValue(alertMessage);
+      Logger.log(alertMessage);
+      return;
+    }
+
+    sourceData.sort((a, b) => a[2].localeCompare(b[2])); // Ordenar los datos según la columna C (índice 2)
+
+    var detailDefectsDataCopied = false;
+    var transversalDefectsDataCopied = false;
+
+    if (dataForDetailDefects.length > 0) {
+      var destinationLastRow = destinationDefectsSheet.getLastRow();
+      var destinationRange = destinationDefectsSheet.getRange(destinationLastRow + 1, 2, dataForDetailDefects.length, 11);
+      destinationRange.setValues(dataForDetailDefects);
+      detailDefectsDataCopied = true;
+    }
+    if (dataForTransversalDefects.length > 0) {
+      var transversalLastRow = transversalDefectsSheet.getLastRow();
+      var transversalRange = transversalDefectsSheet.getRange(transversalLastRow + 1, 2, dataForTransversalDefects.length, 11);
+      transversalRange.setValues(dataForTransversalDefects);
+      transversalDefectsDataCopied = true;
+    }
+
+    var dataFromD10G10 = sourceMainSheet.getRange('D10:G10').getDisplayValues().flat().join(' ');
+    var dataFromD19G19 = sourceMainSheet.getRange('D19:G19').getDisplayValues().flat().join(' ');
+
+    if (detailDefectsDataCopied) {
+      fillColumnBasedOnC(destinationDefectsSheet, dataFromD10G10, dataFromD19G19, destinationLastRow + 1, dataForDetailDefects.length);
+    }
+    if (transversalDefectsDataCopied) {
+      fillColumnBasedOnC(transversalDefectsSheet, dataFromD10G10, dataFromD19G19, transversalLastRow + 1, dataForTransversalDefects.length);
+    }
+  }
+}
+
+function getLastNonEmptyRow(sheet, column) {
+  var lastRow = sheet.getLastRow();
+  var range = sheet.getRange(column + '1:' + column + lastRow);
+  var values = range.getValues();
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (values[i][0] !== "") {
+      return i + 1;
+    }
+  }
+  return 1;
+}
+
+function fillColumnBasedOnC(sheet, valueA, valueM, startRow, length) {
+  var valuesA = Array(length).fill([valueA]);
+  var valuesM = Array(length).fill([valueM]);
+  sheet.getRange('A' + startRow + ':A' + (startRow + length - 1)).setValues(valuesA);
+  sheet.getRange('M' + startRow + ':M' + (startRow + length - 1)).setValues(valuesM);
+}
