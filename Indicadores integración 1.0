@@ -1,4 +1,4 @@
-  function main() {
+function main() {
   var sourceSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sourceSpreadsheetUrl = sourceSpreadsheet.getUrl();
   var destinationSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1yCiCgLSm4ZNNah-Rrd8mGm1e10hO430by-oDBuzLruk/edit';
@@ -9,7 +9,15 @@
   // Verificar la condición antes de copiar datos
   if (checkCondition(sourceSpreadsheetUrl)) {
     // Copiar datos después de limpiar las celdas
-    copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl);
+    var logMessages = {
+      resumen: "",
+      detalleHUs: "",
+      detalleDefectos: "",
+      defectosTransversales: ""
+    };
+    copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl, logMessages);
+    // Colocar mensaje de confirmación
+    setConfirmationMessage(sourceSpreadsheet, logMessages);
   }
 }
 
@@ -64,7 +72,7 @@ function checkCondition(sourceSpreadsheetUrl) {
   return true;
 }
 
-function copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl) {
+function copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl, logMessages) {
   var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSpreadsheetUrl);
   var destinationResumenSheet = destinationSpreadsheet.getSheetByName('Resumen');
   var destinationColumnSheet = destinationSpreadsheet.getSheetByName('Detalle HUs');
@@ -82,16 +90,16 @@ function copyData(sourceSpreadsheetUrl, destinationSpreadsheetUrl) {
   }
 
   // Código para copyDataToResumen
-  copyDataToResumen(sourceSpreadsheet, destinationResumenSheet);
+  copyDataToResumen(sourceSpreadsheet, destinationResumenSheet, logMessages);
 
   // Código para copyDataToDetalleHUs
-  copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationColumnSheet);
+  copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationColumnSheet, logMessages);
 
   // Código para copyDataFromSheetInOneSpreadsheetToAnother
-  copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainSheet, destinationDefectsSheet, transversalDefectsSheet);
+  copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainSheet, destinationDefectsSheet, transversalDefectsSheet, logMessages);
 }
 
-function copyDataToResumen(sourceSpreadsheet, destinationResumenSheet) {
+function copyDataToResumen(sourceSpreadsheet, destinationResumenSheet, logMessages) {
   var mappings = [
     { sourceSheetName: '1 Datos Generales', sourceCell: 'D10:F10', destinationColumn: 'A' },
     { sourceSheetName: '1 Datos Generales', sourceCell: 'D13:G13', destinationColumn: 'D' },
@@ -107,7 +115,7 @@ function copyDataToResumen(sourceSpreadsheet, destinationResumenSheet) {
     { sourceSheetName: '3 Estado Final', sourceCell: 'S3', destinationColumn: 'I' },
     { sourceSheetName: '3 Estado Final', sourceCell: 'X2', destinationColumn: 'H' },
     { sourceSheetName: '3 Estado Final', sourceCell: 'X3', destinationColumn: 'G' },
-    { sourceSheetName: '3 Estado Final', sourceCell: 'O3', destinationColumn: 'F' },
+    { sourceSheetName: '3 Estado Final', sourceCell: 'X4', destinationColumn: 'F' },
   ];
 
   var lastRowResumen = getLastNonEmptyRow(destinationResumenSheet, 'A');
@@ -151,9 +159,11 @@ function copyDataToResumen(sourceSpreadsheet, destinationResumenSheet) {
 
   var rangeL = destinationResumenSheet.getRange('L5:L' + destinationResumenSheet.getLastRow());
   rangeL.setNumberFormat('@STRING@');
+
+  logMessages.resumen = "Datos copiados a 'Resumen' desde la fila " + destinationRowResumen;
 }
 
-function copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationColumnSheet) {
+function copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationColumnSheet, logMessages) {
   if (sourceColumnSheet && sourceMainSheet) {
     var lastRow = sourceColumnSheet.getLastRow();
     var sourceColumnRangeC = sourceColumnSheet.getRange('C10:C' + lastRow);
@@ -204,12 +214,14 @@ function copyDataToDetalleHUs(sourceColumnSheet, sourceMainSheet, destinationCol
     var repeatValuesD18G18 = Array(sourceLength).fill([dataFromD18G18]);
     var destinationRangeG = destinationColumnSheet.getRange('G' + lastDestinationRowDetalle + ':G' + (lastDestinationRowDetalle + repeatValuesD18G18.length - 1));
     destinationRangeG.setValues(repeatValuesD18G18);
+
+    logMessages.detalleHUs = "Datos copiados a 'Detalle HUs' desde la fila " + lastDestinationRowDetalle + " hasta la fila " + (lastDestinationRowDetalle + sourceLength - 1);
   } else {
     Logger.log('Error: La hoja "Hoja 3" o "Hoja 1" no fue encontrada en el origen.');
   }
 }
 
-function copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainSheet, destinationDefectsSheet, transversalDefectsSheet) {
+function copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainSheet, destinationDefectsSheet, transversalDefectsSheet, logMessages) {
   if (sourceSheet2 && sourceMainSheet) {
     var dataAfterB2 = sourceSheet2.getRange('B13:B' + sourceSheet2.getLastRow()).getValues().flat().filter(String);
     if (dataAfterB2.length === 0) {
@@ -272,9 +284,11 @@ function copyDataFromSheetInOneSpreadsheetToAnother(sourceSheet2, sourceMainShee
 
     if (detailDefectsDataCopied) {
       fillColumnBasedOnC(destinationDefectsSheet, dataFromD10G10, dataFromD19G19, destinationLastRow + 1, dataForDetailDefects.length);
+      logMessages.detalleDefectos = "Datos copiados a 'Detalle defectos' desde la fila " + (destinationLastRow + 1) + " hasta la fila " + (destinationLastRow + dataForDetailDefects.length);
     }
     if (transversalDefectsDataCopied) {
       fillColumnBasedOnC(transversalDefectsSheet, dataFromD10G10, dataFromD19G19, transversalLastRow + 1, dataForTransversalDefects.length);
+      logMessages.defectosTransversales = "Datos copiados a 'Defectos Transversales' desde la fila " + (transversalLastRow + 1) + " hasta la fila " + (transversalLastRow + dataForTransversalDefects.length);
     }
   }
 }
@@ -297,3 +311,17 @@ function fillColumnBasedOnC(sheet, valueA, valueM, startRow, length) {
   sheet.getRange('A' + startRow + ':A' + (startRow + length - 1)).setValues(valuesA);
   sheet.getRange('M' + startRow + ':M' + (startRow + length - 1)).setValues(valuesM);
 }
+
+function setConfirmationMessage(spreadsheet, logMessages) {
+  var sheet = spreadsheet.getSheetByName('1 Datos Generales');
+  if (sheet) {
+    sheet.getRange('G28').setValue('El proceso se completó correctamente.');
+    sheet.getRange('O8').setValue(logMessages.resumen);
+    sheet.getRange('O9').setValue(logMessages.detalleHUs);
+    sheet.getRange('O10').setValue(logMessages.detalleDefectos);
+    sheet.getRange('O11').setValue(logMessages.defectosTransversales);
+  } else {
+    Logger.log('Error: La hoja "1 Datos Generales" no fue encontrada en el origen.');
+  }
+}
+
